@@ -1,0 +1,13 @@
+# ── 工具缓存（WorkBuddy / dsh 产生，不属于站点内容）──
+.dsh/
+.dsh-vision-router/
+.dsh-xparse-out/
+
+# ── 大体积学习视频（已移出仓库）──
+_shared/miku/study/
+
+# ── 系统与临时文件 ──
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
