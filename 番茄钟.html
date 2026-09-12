@@ -6,7 +6,7 @@
 <title>初音番茄钟 · 专注计时</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" data-page-node-id="n1yPXMLBAIl6jMC8z2zkDu">
 <style>
-@font-face{font-family:"霞鹜文楷";src:url("./_shared/fonts/LXGWWenKai-Regular.ttf") format("truetype");font-display:swap}
+@font-face{font-family:"霞鹜文楷";src:url("./_shared/fonts/LXGWWenKai-subset.woff2") format("woff2");font-display:swap;font-weight:400;font-style:normal}
 
 :root{
   /* 主色调 #39c5bb —— 初音绿 */
@@ -419,14 +419,6 @@ body.hasvid .vb-parts button:not(.on),
 body.hasvid .vb-btn:not(.on){
   background:rgba(255,255,255,.92);
 }
-/* 深色模式下文字仍保持对比 */
-body.hasvid .credit{
-  color:#cfeae7;text-shadow:0 1px 8px rgba(0,16,26,.9);
-  background:rgba(4,20,30,.55);
-  border-radius:12px;padding:10px 14px;
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-}
-body.hasvid .credit a{color:#7fe3db}
 
 /* 背景动画控制条 */
 .vidbar{
@@ -703,7 +695,7 @@ body.mp-hide .mp{display:none}
 .mp-prog:hover b{transform:translate(-50%,-50%) scale(1)}
 .mp-prog.zero i{background:transparent}
 
-.mp-bar{max-height:92px;overflow:hidden}   /* 兜底：内部元素意外撑高时不会把整条播放器拉长 */
+.mp-bar{max-height:104px;overflow:hidden}   /* 兜底：内部元素意外撑高时不会把整条播放器拉长（音量行 30 + 进度 3 + 主行 50 ≈ 83） */
 .mp-bar-in{display:flex;align-items:center;gap:12px;padding:8px 12px}
 .mp-cover{
   width:44px;height:44px;border-radius:10px;flex:none;overflow:hidden;
@@ -761,18 +753,52 @@ body.mp-hide .mp{display:none}
 }
 .mp-ic.mp-w{position:relative;width:auto;padding:0 9px;gap:5px;font-size:12.5px;font-weight:700}
 
-.mp-vol{display:flex;align-items:center;width:0;overflow:hidden;transition:width .2s;flex:none}
-.mp-tools:hover .mp-vol,.mp-vol.pin{width:78px;margin-right:4px}
-.mp-vol input{
-  width:78px;height:4px;-webkit-appearance:none;appearance:none;
-  background:var(--line);border-radius:99px;outline:none;cursor:pointer;
+/* ---------- 音量行（常驻，位于进度条上方） ---------- */
+.mp-vrow{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px 5px;
 }
-.mp-vol input::-webkit-slider-thumb{
-  -webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;
+.mp-vic{
+  font-family:inherit;cursor:pointer;border:none;background:transparent;
+  color:var(--miku-deep);font-size:13px;line-height:1;padding:0;flex:none;
+  width:20px;height:20px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s,transform .15s;
+}
+.mp-vic:hover{background:var(--miku-pale);transform:translateY(-1px)}
+.mp-vic:active{transform:scale(.92)}
+/* 轨道用渐变画出「已填充」部分，百分比由 JS 写入 --vp 变量
+   注意：input 本身 16px 高（保证好点），视觉轨道只有 4px（::-webkit-slider-runnable-track） */
+.mp-vrow .mp-vrange{
+  flex:1;min-width:0;margin:0;height:16px;
+  -webkit-appearance:none;appearance:none;
+  background:transparent;outline:none;cursor:pointer;
+}
+.mp-vrow .mp-vrange::-webkit-slider-runnable-track{
+  height:4px;border-radius:99px;
+  background:linear-gradient(90deg,var(--miku-soft) 0%,var(--miku) var(--vp,70%),
+    var(--line) var(--vp,70%),var(--line) 100%);
+}
+.mp-vrow .mp-vrange::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:11px;height:11px;border-radius:50%;
+  margin-top:-3.5px;   /* (4 - 11) / 2，让圆点居中压在轨道上 */
   background:var(--miku);cursor:pointer;box-shadow:0 1px 4px rgba(15,91,87,.35);
+  transition:transform .12s;
 }
-.mp-vol input::-moz-range-thumb{
-  width:12px;height:12px;border:none;border-radius:50%;background:var(--miku);cursor:pointer;
+.mp-vrow .mp-vrange:hover::-webkit-slider-thumb{transform:scale(1.2)}
+.mp-vrow .mp-vrange::-moz-range-track{
+  height:4px;border-radius:99px;background:var(--line);
+}
+.mp-vrow .mp-vrange::-moz-range-progress{
+  height:4px;border-radius:99px;background:linear-gradient(90deg,var(--miku-soft),var(--miku));
+}
+.mp-vrow .mp-vrange::-moz-range-thumb{
+  width:11px;height:11px;border:none;border-radius:50%;background:var(--miku);
+  cursor:pointer;box-shadow:0 1px 4px rgba(15,91,87,.35);
+}
+.mp-vnum{
+  flex:none;width:24px;text-align:right;font-size:10px;font-weight:700;
+  color:var(--sub);font-variant-numeric:tabular-nums;letter-spacing:.2px;
 }
 
 /* 收起后的小圆标（与迷你条同侧：左下角） */
@@ -800,7 +826,7 @@ body.hasvid .mp-list-head{
 @media (max-width:720px){
   .mp-time,.mp-cols span:nth-child(3),.mp-row .ar{display:none}
   .mp-row,.mp-cols{grid-template-columns:30px minmax(0,1fr)}
-  .mp-tools .mp-vol{display:none}
+  .mp-vnum{display:none}
   .mp-cover{width:40px;height:40px}
   .mp-title{font-size:12.5px}
 }
@@ -821,10 +847,9 @@ body.hasvid .mp-list-head{
 .mp-ic{width:28px;height:28px;font-size:14px;border-radius:8px}
 .mp-play{width:32px;height:32px;font-size:14px}
 .mp-ic.mp-w{padding:0 6px;gap:3px;font-size:11px}
-/* 迷你条只保留：封面 / 歌名 / 播放 / 下一首 / 列表 / 收起 */
+/* 迷你条主行只保留：封面 / 歌名 / 播放 / 下一首 / 列表 / 收起（音量独立成行，见 .mp-vrow） */
 .mp-time{display:none}
-.mp-tools .mp-vol,
-.mp-tools #mpVolBtn,
+.mp-vrow{padding:6px 9px 4px;gap:7px}
 .mp-tools #mpMode,
 .mp-tools #mpPrev{display:none}
 .mp-tools #mpCountNum{display:none}
@@ -852,39 +877,15 @@ body.hasvid.panels .side{display:flex;animation:sideIn .22s ease}
 @keyframes sideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 body.hasvid.panels .box{background:rgba(255,255,255,.955)}
 
-/* 快捷入口 */
-.qk-num{font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
-.qk-num b{color:var(--miku-deep);font-size:14px}
-.qk-links{display:flex;gap:8px;flex-wrap:wrap}
-.qk-links a{
-  flex:1;min-width:120px;text-align:center;text-decoration:none;
-  font-size:12.5px;font-weight:700;color:var(--miku-deep);
-  background:var(--miku-pale);border:1px solid var(--line);border-radius:10px;
-  padding:8px 10px;transition:all .16s;
-}
-.qk-links a:hover{border-color:var(--miku);background:#fff;transform:translateY(-1px)}
-
-/* 视频模式下：版权说明贴到底部，弱化为小字 */
+/* 视频模式下：正文贴到底部（原快捷入口与版权说明已移除） */
 body.hasvid .wrap{
   padding-top:14px;
   padding-bottom:104px;
   min-height:100vh;
   display:flex;flex-direction:column;
 }
-body.hasvid .credit{
-  max-width:660px;margin:auto auto 10px;
-  background:rgba(4,20,30,.42);border-radius:10px;padding:8px 12px;
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  font-size:10.5px;line-height:1.7;opacity:.85;
-}
 /* 视频模式下把「漂浮音符」压暗，别抢画面 */
 body.hasvid .notes{opacity:.35}
-
-/* ---------- 版权说明 ---------- */
-.credit{
-  text-align:center;color:var(--sub);font-size:11.5px;margin-top:22px;line-height:2;
-}
-.credit a{color:var(--miku-deep)}
 
 /* ---------- 完成弹层 ---------- */
 .overlay{
@@ -937,6 +938,28 @@ body.hasvid .notes{opacity:.35}
   .miku-strip .txt .eyebrow{letter-spacing:3px;font-size:10.5px}
 }
 </style>
+
+<!-- ==================== 百度统计 ====================
+  启用：把下面 BAIDU_TONGJI_ID 填成 32 位站点 ID 即可，其余不用动。
+  取 ID：tongji.baidu.com → 管理 → 新增网站 → 域名填 studywithmiku.qd.je → 代码获取
+  留空时不会加载任何外部脚本，零请求、零影响。
+  若百度要求验证域名，把 meta 的 content 值填到下面 baidu-site-verification 里。
+=================================================== -->
+<meta name="baidu-site-verification" content="">
+<script>
+window.BAIDU_TONGJI_ID = '';
+(function(){
+  // 无论是否启用，_hmt 都先就位：打点代码可以放心调用，不会报错
+  window._hmt = window._hmt || [];
+  var id = window.BAIDU_TONGJI_ID;
+  if(!id) return;
+  var hm = document.createElement('script');
+  hm.async = true;
+  hm.src = 'https://hm.baidu.com/hm.js?' + id;
+  var s = document.getElementsByTagName('script')[0];
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
 </head>
 <body class="hasvid" data-page-node-id="FfRCxCxyZ9P1At98WyLdCK">
 
@@ -976,6 +999,12 @@ body.hasvid .notes{opacity:.35}
 
     <!-- 底部横条 -->
     <div class="mp-bar" data-page-node-id="lnQuHT4YaPaNUqIey4qwxR">
+      <!-- 音量行：常驻显示，位于进度条上方 -->
+      <div class="mp-vrow" data-page-node-id="YmByNvM6jNuNtAu8E5C1qs">
+        <button class="mp-vic" id="mpVolBtn" title="静音 / 恢复音量" data-page-node-id="JCOWFxwGP7ChiWCABjE54x">🔊</button>
+        <input class="mp-vrange" id="mpVol" type="range" min="0" max="100" value="70" aria-label="音量" title="音量" data-page-node-id="GOagGoc6XD5BaSfzsICM0A">
+        <span class="mp-vnum" id="mpVolNum">70</span>
+      </div>
       <div class="mp-prog" id="mpProg" data-page-node-id="A5Z7h9kmElElNZXY8MD5cL"><i id="mpProgFill" data-page-node-id="qLSpddtK2PaHnvUek81sO4"></i><b id="mpProgDot" data-page-node-id="lD6z37Y6572GtDjJt52fZa"></b></div>
       <div class="mp-bar-in" data-page-node-id="keEjh5UDCrbG7yBRHoHUkn">
         <div class="mp-cover" id="mpCover" title="展开播放列表" data-page-node-id="9DVvFFgKywgAOEXWjVi7fQ">
@@ -988,8 +1017,6 @@ body.hasvid .notes{opacity:.35}
         </div>
         <div class="mp-time" data-page-node-id="kAG7y9kb20NDdWsQg6ASFA"><b id="mpCur" data-page-node-id="2kr7bBIG0IoQTC5voMYfLn">00:00</b> / <span id="mpDur" data-page-node-id="HIjcKQQRouW8AWQBASfwqs">00:00</span></div>
         <div class="mp-tools" data-page-node-id="dFwsNf0E88hkUNny5sv3nV">
-          <div class="mp-vol" data-page-node-id="YmByNvM6jNuNtAu8E5C1qs"><input id="mpVol" type="range" min="0" max="100" value="70" data-page-node-id="GOagGoc6XD5BaSfzsICM0A"></div>
-          <button class="mp-ic" id="mpVolBtn" title="音量" data-page-node-id="JCOWFxwGP7ChiWCABjE54x">🔊</button>
           <button class="mp-ic" id="mpMode" title="播放模式：列表循环" data-page-node-id="Lr9c1dsb44P3cyJuNcxqbi">🔁</button>
           <button class="mp-ic" id="mpPrev" title="上一首" data-page-node-id="ZFDc7YcQB7iFLozOFyXeN9">⏮</button>
           <button class="mp-play" id="mpPlay" title="播放 / 暂停" data-page-node-id="MCBtPc2JfmFDirHAuHZTjm">▶</button>
@@ -1113,24 +1140,6 @@ body.hasvid .notes{opacity:.35}
         <div class="log" id="log" data-page-node-id="zRlxNAcLhsMm8p4muhmHDv"></div>
       </div>
 
-      <div class="box" data-page-node-id="lHjDZ3Uccjq9oUXVy7JCSl">
-        <h3 data-page-node-id="0fuaUk2Sa99EEamK4B1CC5">快捷入口</h3>
-        <div class="row" style="margin-bottom:10px" data-page-node-id="Ank5H39M4k83Sqs6X625Ka">
-          <label data-page-node-id="M9ymTohu2tFF4IqhydumPY">今日专注</label>
-          <span class="qk-num" data-page-node-id="WdmVIc47HgZaewvXddwGIN"><b id="tbToday" data-page-node-id="eaF9vQFz5wodZQD1yW8TUg">0</b> 分钟 · <b id="tbCount" data-page-node-id="ANyTSfVITaHpdbdrpo60mi">0</b> 个番茄</span>
-        </div>
-        <div class="qk-links" data-page-node-id="eHPFL6uFnpCYPXw9n0VlGu">
-          <a href="百日冲刺计划.html" data-page-node-id="Fck2xCEztVwiGEIjmjUmXA">← 冲刺计划</a>
-          <a href="index.html" data-page-node-id="BVnEeweBuOoM9EsEEpRzCu">资料库导航</a>
-        </div>
-      </div>
-
-  </div>
-
-  <!-- 版权 -->
-  <div class="credit" data-page-node-id="P2DaZs2xjBoltEgEbFuBll">
-    背景动画出自 Crypton Future Media 官方企划「STUDY WITH MIKU」（39ch），仅作个人学习计时页面的装饰之用<br data-page-node-id="4n2skiMoEmAFc5ANoLatXJ">
-    初音未来（Hatsune Miku）角色版权归 Crypton Future Media 所有 · 本页为非商业个人使用 · 打卡与统计保存在本机浏览器
   </div>
 
 </div>
@@ -1164,6 +1173,7 @@ body.hasvid .notes{opacity:.35}
     running:false,
     left:39*60,          // 剩余秒
     total:39*60,         // 当前阶段总秒
+    endAt:0,             // 运行时的绝对结束时刻（ms）；0 = 未运行
     round:1,             // 第几个番茄
     cfg:{focus:39, short:5, long:15, cycle:4},
     autoNext:true,
@@ -1210,6 +1220,82 @@ body.hasvid .notes{opacity:.35}
     }));
   }
 
+  // ---------- 进行中的计时状态（刷新页面后接着跑，不再从头开始）----------
+  // 关键思路：存「绝对结束时刻 endAt」，而不是每秒写一次剩余秒。
+  //   刷新后用 endAt - now 就能算出真实剩余，写入次数极少，也顺带修掉了
+  //   「切到后台标签页时定时器被节流、计时走慢」的问题。
+  var SESS = KEY + '_session';
+
+  function saveSession(extra){
+    try{
+      var o = {
+        v:1,
+        mode:S.mode, total:S.total, left:S.left, round:S.round,
+        running:!!S.running, endAt:S.endAt||0,
+        savedAt:Date.now()
+      };
+      if(extra){ for(var k in extra){ o[k] = extra[k]; } }
+      storeSet(SESS, JSON.stringify(o));
+    }catch(e){}
+  }
+
+  function clearSession(){
+    try{ localStorage.removeItem(SESS); }catch(e){}
+    try{ sessionStorage.removeItem(SESS); }catch(e){}
+    S.endAt = 0;
+  }
+
+  // 返回 true = 成功接回上次的进度
+  function restoreSession(){
+    var raw = null;
+    try{ raw = storeGet(SESS); }catch(e){}
+    if(!raw) return false;
+    var o = null;
+    try{ o = JSON.parse(raw); }catch(e){ return false; }
+    if(!o || !o.mode || !(o.total > 0)) return false;
+
+    // 暂停中的状态超过 12 小时就别恢复了，免得第二天打开看到昨天的残留
+    if(!o.running && o.savedAt && (Date.now() - o.savedAt) > 12*3600*1000) return false;
+
+    S.mode  = (o.mode === 'short' || o.mode === 'long') ? o.mode : 'focus';
+    S.total = o.total;
+    S.round = o.round > 0 ? o.round : 1;
+
+    // 上次刚完成一个阶段、还没点「下一步」→ 直接进到下一阶段的起点
+    if(o.nextPending){
+      S.running = false;
+      advance();
+      return true;
+    }
+
+    if(o.running && o.endAt > 0){
+      var rem = (o.endAt - Date.now()) / 1000;
+      if(rem > 0){
+        // 还在计时中：原样沿用那个结束时刻接着跑，误差最小
+        S.running = false;
+        S.left = rem;
+        start(o.endAt);
+        return true;
+      }
+      // 刚好到点（30 分钟内）→ 说明这次是真完成了，正常结算并记一个番茄
+      if((Date.now() - o.endAt) < 30*60*1000){
+        S.running = false;
+        S.left = 0;
+        render();
+        complete();
+        return true;
+      }
+      return false;   // 过去太久，当没发生过
+    }
+
+    // 暂停中：停在原来剩余的位置
+    var lv = (typeof o.left === 'number') ? o.left : S.total;
+    S.left = Math.max(0, Math.min(lv, S.total));
+    S.running = false;
+    render();
+    return true;
+  }
+
   // ---------- 连续天数 ----------
   function bumpStreak(){
     var t = todayStr();
@@ -1242,6 +1328,18 @@ body.hasvid .notes{opacity:.35}
         o.connect(g); g.connect(actx.destination);
         o.start(t0); o.stop(t0 + 0.45);
       });
+    }catch(e){}
+  }
+
+  // ---------- 统计打点（百度统计；未填 ID 时静默丢弃） ----------
+  // 后台查看路径：百度统计 → 行为分析 → 事件分析；分类固定为「番茄钟」
+  function track(action, label, value){
+    try{
+      if(!window._hmt) return;
+      var a = ['_trackEvent', '番茄钟', action];
+      if(label) a.push(String(label));
+      if(typeof value === 'number') a.push(value);
+      window._hmt.push(a);
     }catch(e){}
   }
 
@@ -1349,8 +1447,10 @@ body.hasvid .notes{opacity:.35}
     $('stMin').textContent = t.min;
     $('stStreak').textContent = S.streak||0;
     $('stAll').textContent = S.all;
-    $('tbToday').textContent = t.min;
-    $('tbCount').textContent = t.tomato;
+    // 顶部/底部统计条已移除，这里做空值保护
+    var tbT = $('tbToday'), tbC = $('tbCount');
+    if(tbT) tbT.textContent = t.min;
+    if(tbC) tbC.textContent = t.tomato;
   }
 
   function renderLog(){
@@ -1376,34 +1476,40 @@ body.hasvid .notes{opacity:.35}
     S.total = S.cfg[mode] * 60;
     S.left = S.total;
     if(!keepRound && mode === 'focus'){ /* round 已在别处处理 */ }
+    saveSession();
     render();
   }
-  function start(){
+  // resumeEndAt：恢复上次进度时传入原结束时刻，避免误差累积
+  function start(resumeEndAt){
     if(S.running) return;
-    // 首次开始专注时，记录连续天数
-    if(S.mode === 'focus' && S.left === S.total) bumpStreak();
+    var isFresh = S.left >= S.total - 0.4;   // 全新开始（而非暂停后续跑）
+    // 首次开始专注时，记录连续天数（恢复时 left < total，不会重复记）
+    if(S.mode === 'focus' && isFresh) bumpStreak();
     S.running = true;
-    var last = Date.now();
-    tickTimer = setInterval(function(){
-      var now = Date.now();
-      var dt = (now - last) / 1000;
-      last = now;
-      S.left -= dt;
-      if(S.left <= 0){
-        S.left = 0;
-        render();
-        stop();
-        complete();
-        return;
-      }
-      render();
-    }, 200);
+    S.endAt = resumeEndAt || (Date.now() + Math.max(0, S.left) * 1000);
+    tickTimer = setInterval(tick, 200);
+    saveSession();
     render();
     vidSyncWithTimer();
+    track(S.mode === 'focus' ? '开始专注' : '开始休息', isFresh ? '新开始' : '续跑');
+  }
+  function tick(){
+    var left = (S.endAt - Date.now()) / 1000;
+    if(left <= 0){
+      S.left = 0;
+      render();
+      stop();
+      complete();
+      return;
+    }
+    S.left = left;
+    render();
   }
   function stop(){
     S.running = false;
+    S.endAt = 0;
     if(tickTimer){ clearInterval(tickTimer); tickTimer = null; }
+    saveSession();          // 暂停也要记住位置，刷新后停在同一处而不是归零
     render();
     vidSyncWithTimer();
   }
@@ -1422,10 +1528,14 @@ body.hasvid .notes{opacity:.35}
       var isLong = (S.today.tomato % S.cfg.cycle === 0);
       save();
       renderStats(); renderLog();
+      track('完成番茄', '今日第' + S.today.tomato + '个', S.cfg.focus);
       showOverlay(isLong ? 'long' : 'short');
     }else{
+      track('完成休息', S.mode === 'long' ? '长休' : '短休');
       showOverlay('focus');
     }
+    // 记下「刚完成、等下一步」：刷新后能直接进到下一阶段，而不是回到 39:00
+    saveSession({nextPending:true});
   }
   function showOverlay(next){
     var isFocusNext = (next === 'focus');
@@ -1468,6 +1578,7 @@ body.hasvid .notes{opacity:.35}
     stop();
     S.left = S.total;
     render();
+    saveSession();
   };
   var elSkip = $('skipBtn');
   if(elSkip) elSkip.onclick = function(){
@@ -1500,8 +1611,8 @@ body.hasvid .notes{opacity:.35}
       $('vLong').textContent = S.cfg.long;
       $('vCycle').textContent = S.cfg.cycle;
       // 当前阶段若未开始，同步刷新
-      if(!S.running && S.left === S.total){ S.total = S.cfg[S.mode]*60; S.left = S.total; }
-      save(); render();
+      if(!S.running && S.left >= S.total - 0.4){ S.total = S.cfg[S.mode]*60; S.left = S.total; }
+      save(); saveSession(); render();
     };
   });
 
@@ -1532,11 +1643,15 @@ body.hasvid .notes{opacity:.35}
   document.addEventListener('keydown', function(e){
     var tag = (e.target.tagName||'').toLowerCase();
     if(tag === 'input' || tag === 'textarea') return;    if(e.code === 'Space'){ e.preventDefault(); S.running ? stop() : start(); }
-    if(e.key === 'r' || e.key === 'R'){ stop(); S.left = S.total; render(); }
+    if(e.key === 'r' || e.key === 'R'){ stop(); S.left = S.total; render(); saveSession(); }
   });
 
-  // 离开页面时把标题改回去
-  window.addEventListener('beforeunload', stop);
+  // 刷新 / 关闭页面：只把当前进度写盘，**不动 running 状态** —— 下次打开接着跑
+  window.addEventListener('beforeunload', function(){ saveSession(); });
+  // 切到后台（含手机切 App）也存一次，防止被系统直接杀掉
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) saveSession();
+  });
 
   // ---------- 漂浮音符 ----------
   (function initNotes(){
@@ -1682,7 +1797,7 @@ body.hasvid .notes{opacity:.35}
           if(!rand) return;                 // 手动切换时从头播
           var d = bgv.duration;
           if(d && isFinite(d) && d > 20){
-            bgv.currentTime = 2 + Math.random() * (d - 6);
+            bgv.currentTime = 2 + Math.random() * (d - 12);   // 末尾留 10 秒余量，别一开局就贴着结尾
           }
         }catch(e){}
       };
@@ -1849,9 +1964,43 @@ body.hasvid .notes{opacity:.35}
     bgv.addEventListener('waiting', function(){ $('vidLayer').classList.add('vb-loading'); });
     bgv.addEventListener('playing', function(){ $('vidLayer').classList.remove('vb-loading'); });
     bgv.addEventListener('canplay', function(){ $('vidLayer').classList.remove('vb-loading'); });
-    // 循环播放兜底（部分浏览器 loop 在 seek 后失效）
-    bgv.addEventListener('ended', function(){
-      try{ bgv.currentTime = 0; var pr = bgv.play(); if(pr && pr.catch) pr.catch(function(){}); }catch(e){}
+    // ---- 循环播放保障 ----
+    // Chromium 的已知问题：对 loop 视频做 currentTime 跳转后循环会失效，
+    // 视频播到最后一帧就定住；而规范规定 loop=true 时不会触发 ended，
+    // 所以原来那版「ended 兜底」其实是死代码，永远不执行。
+    // 这里改成用定时器直接盯住播放位置：贴到结尾、或长时间不动，就拉回开头重播。
+    var lastT = -1, stuck = 0;
+    function replayVideo(){
+      if(!V.on || !bgv) return;
+      try{
+        bgv.currentTime = 0;
+        var pr = bgv.play();
+        if(pr && pr.catch) pr.catch(function(){});
+      }catch(e){}
+      lastT = -1; stuck = 0;
+    }
+    bgv.addEventListener('ended', replayVideo);
+    setInterval(function(){
+      if(!V.on || !bgv || bgv.paused || bgv.seeking){ lastT = -1; stuck = 0; return; }
+      var d = bgv.duration, t = bgv.currentTime;
+      // ① 已经贴到结尾：立刻回开头
+      if(d && isFinite(d) && d > 2 && t >= d - 0.5){ replayVideo(); return; }
+      // ② 连续 3 秒播放位置没推进：判定卡死，重播
+      if(t === lastT){
+        if(++stuck >= 3) replayVideo();
+      }else{
+        stuck = 0;
+        lastT = t;
+      }
+    }, 1000);
+    // 网络卡顿导致播放停摆：稍后自动重试一次
+    bgv.addEventListener('stalled', function(){
+      setTimeout(function(){
+        if(V.on && bgv && !bgv.paused){
+          var pr = bgv.play();
+          if(pr && pr.catch) pr.catch(function(){});
+        }
+      }, 1500);
     });
 
     applyVid();
@@ -2029,8 +2178,16 @@ body.hasvid .notes{opacity:.35}
     function applyVol(){
       AU.volume = M.vol;
       AU.muted = M.vol <= 0.001;
-      $('mpVol').value = String(Math.round(M.vol * 100));
-      $('mpVolBtn').textContent = M.vol <= 0.001 ? '🔇' : (M.vol < 0.45 ? '🔈' : '🔊');
+      var pct = Math.round(M.vol * 100);
+      var rng = $('mpVol');
+      rng.value = String(pct);
+      // 写入 --vp 百分比，由 CSS 里 ::-webkit-slider-runnable-track 的渐变画出已填充部分
+      rng.style.setProperty('--vp', pct + '%');
+      var num = $('mpVolNum');
+      if(num) num.textContent = String(pct);
+      var btn = $('mpVolBtn');
+      btn.textContent = M.vol <= 0.001 ? '🔇' : (M.vol < 0.45 ? '🔈' : '🔊');
+      btn.title = M.vol <= 0.001 ? '恢复音量' : '静音';
     }
     $('mpVol').oninput = function(){ M.vol = this.value / 100; applyVol(); mSave(); };
     $('mpVolBtn').onclick = function(){ M.vol = (M.vol > 0.001 ? 0 : 0.7); applyVol(); mSave(); };
@@ -2098,9 +2255,10 @@ body.hasvid .notes{opacity:.35}
   $('vShort').textContent = S.cfg.short;
   $('vLong').textContent = S.cfg.long;
   $('vCycle').textContent = S.cfg.cycle;
-  setMode('focus');
   renderLog();
   initVid();
+  // 接回上次未完成的进度（刷新/误关页面后不再从头开始）；没有进度才用默认的专注阶段
+  if(!restoreSession()) setMode('focus');
 
   // 支持 ?task=xxx 从冲刺计划带任务进来
   (function(){
