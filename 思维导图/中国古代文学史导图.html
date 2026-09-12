@@ -73,6 +73,9 @@ html,body{background:var(--bg);color:var(--ink);height:100%;
   padding:5px 10px;cursor:pointer;font-size:14px;}
 </style>
 <!-- digitalplat-analytics-patch -->
+<script>/* dp-beacon-cors-fix: sendBeacon 强制 credentials=include 导致 CORS 预检失败，改走 fetch(omit) */
+(function(){if(!navigator.sendBeacon)return;var n=navigator.sendBeacon.bind(navigator);navigator.sendBeacon=function(u,d){if(String(u).indexOf("analytics.digitalplat.org")===-1)return n(u,d);var p=(d&&typeof d.text==="function")?d.text():d;Promise.resolve(p).then(function(b){fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:typeof b==="string"?b:String(b),credentials:"omit",keepalive:true}).catch(function(){});}).catch(function(){});return true;};})();
+</script>
 <script defer src="https://analytics.digitalplat.org/static/analytics.js" data-property="dpa_qoxc1qfjn11caI4JvguY0ulF7JlMm_E"></script>
 <!-- /digitalplat-analytics-patch -->
 </head>
