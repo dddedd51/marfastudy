@@ -69,6 +69,21 @@ html,body{background:var(--bg);color:var(--ink);
 .config .note{color:var(--sub);font-size:12.5px;margin:8px 0 2px;line-height:1.7;
   background:var(--bg);border:1px dashed var(--line);border-radius:9px;padding:7px 12px;}
 
+/* ===== 星级偏好 ===== */
+.starrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin:12px 0 4px;padding:10px 14px;background:#fdf9f0;
+  border:1px solid var(--line);border-radius:13px;}
+.starrow .slabel{font-size:13px;color:var(--sub);letter-spacing:1px;flex:none}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{font-family:inherit;font-size:13.5px;cursor:pointer;border:none;background:transparent;
+  color:var(--sub);border-radius:999px;padding:6px 13px;transition:all .13s ease;white-space:nowrap;line-height:1.2}
+.seg button:hover{color:var(--accent)}
+.seg button.on{background:linear-gradient(120deg,var(--accent),#b85a2f);color:#fff;font-weight:700;
+  box-shadow:0 2px 6px rgba(154,59,46,.24);}
+.starrow .shint{font-size:12.5px;color:var(--sub);margin-left:auto;text-align:right;line-height:1.7}
+.starrow .shint b{color:var(--accent);font-weight:700}
+@media (max-width:640px){.starrow .shint{margin-left:0;text-align:left}}
+
 /* ===== 日期条 ===== */
 .date-wrap{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;
   box-shadow:0 3px 12px rgba(0,0,0,.04);}
@@ -139,7 +154,7 @@ html,body{background:var(--bg);color:var(--ink);
 
   <div class="hero">
     <h1>每日一题</h1>
-    <div class="sub">古代 · 现当代 · 外国 &nbsp;|&nbsp; 每天按科目配额随机抽一组，点开卡片看答案</div>
+    <div class="sub">古代 · 现当代 · 外国 &nbsp;|&nbsp; 每天按科目配额抽一组，默认只从四星及以上题里取</div>
     <div class="rule"></div>
   </div>
 
@@ -148,7 +163,18 @@ html,body{background:var(--bg);color:var(--ink);
     <div class="qrow" id="qrow">
       <!-- 由 JS 渲染三个科目配额 -->
     </div>
-    <div class="note">同一日期默认抽到相同的一组（便于按天复习与回看过去某天）；抽过可按「换一组」手动重抽当天。配额改为 0 表示该科当天不出题。</div>
+    <div class="starrow">
+      <span class="slabel">星级偏好</span>
+      <div class="seg" id="segStar">
+        <button type="button" data-min="5">★★★★★</button>
+        <button type="button" data-min="4">≥&nbsp;★★★★</button>
+        <button type="button" data-min="3">≥&nbsp;★★★</button>
+        <button type="button" data-min="0">不限</button>
+      </div>
+      <span class="shint" id="starHint"></span>
+    </div>
+    <div class="note">同一日期默认抽到相同的一组（便于按天复习与回看过去某天）；抽过可按「换一组」手动重抽当天。配额改为 0 表示该科当天不出题。<br>
+      星级取原书标注（★ 越多越是论述/简答大题）。默认「≥&nbsp;★★★★」= 只从四星、五星题里抽，整池打散后按天轮转，走完一整轮再从头循环；想连三星一起抽就选「≥&nbsp;★★★」，想全库均匀覆盖就选「不限」，「★★★★★」是只刷最高频大字题的冲刺模式。</div>
   </div>
 
   <div class="date-wrap" style="margin:6px 0 6px;">
@@ -175,7 +201,8 @@ html,body{background:var(--bg);color:var(--ink);
 
   <div class="footnote">
     题库来源：李凡 1000 题 OCR 重建版（古代 483 · 现当代 458 · 外国 332，共 1273 题）· 全部离线可用<br>
-    按天定量抽取，覆盖完整题库后自动循环重来
+    星级取原书标注 —— ★★★★★ 43/47/43 · ★★★★ 123/129/82 · ★★★ 190/173/164（古代/现当代/外国）<br>
+    按天定量抽取，走完当前星级池后自动循环重来
   </div>
 </div>
 
@@ -192,6 +219,12 @@ html,body{background:var(--bg);color:var(--ink);
   ];
   var DEFAULT_Q = { gu:2, xd:2, wg:1 };
   var CUR_Q = Object.assign({}, DEFAULT_Q);
+  // 星级偏好：只看 >= STAR_MIN 星的题；0 = 不限（原版全库均匀覆盖）
+  var DEFAULT_STAR = 4;
+  var STAR_MIN = DEFAULT_STAR;
+  var POOL_CACHE = {};
+  var STAR_LABEL = { 5:'五星池', 4:'四星以上池', 3:'三星以上池', 0:'全库' };
+  function starPoolLabel(){ return STAR_LABEL[STAR_MIN] || '全库'; }
   // 手动重抽计数：同一天内再次点击只换当天顺序；换天自动归零
   var extra = 0;
   var viewedDate = todayObj();     // 当前浏览的日期
@@ -205,18 +238,49 @@ html,body{background:var(--bg);color:var(--ink);
     return { line: o.y+' 年 '+o.m+' 月 '+o.d+' 日', week:'星期'+wd };
   }
 
-  // ---------- 采样：按“日期线性推进 + 块式覆盖整库”，同一天固定同一组 ----------
+  // ---------- 抽题池：按星级下限筛选，池内确定性打散 ----------
+  function starsOf(it){ return (it && it.s) ? String(it.s).length : 0; }
+  function hashStr(s){
+    var h = 2166136261 >>> 0; s = String(s);
+    for(var i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h,16777619) >>> 0; }
+    // murmur3 终混：纯 FNV-1a 对“仅末位不同”的短串（题号 427/428/429…）雪崩不足，
+    // 会把相邻题号挤在相邻位置，导致同一章题目扎堆在同一天。
+    h ^= h >>> 16; h = Math.imul(h, 2246822507) >>> 0;
+    h ^= h >>> 13; h = Math.imul(h, 3266489909) >>> 0;
+    h ^= h >>> 16;
+    return h >>> 0;
+  }
+  // 抽题池 = 星级 >= STAR_MIN 的题；池内按「科目#题号」哈希做确定性打散。
+  // 不用「星级降序」而用打散，是为了让五星均匀铺满整个轮次：若严格按星级排序，
+  // 循环起点由日期决定，会出现连续几十天只抽到同一档星级、另一档迟迟不出现。
+  function poolOf(subjKey){
+    var ck = subjKey + '@' + STAR_MIN;
+    if(POOL_CACHE[ck]) return POOL_CACHE[ck];
+    var src = (BANK && BANK.items) ? BANK.items[subjKey] : null;
+    if(!src) src = [];
+    var tmp = [];
+    for(var i=0;i<src.length;i++){
+      var it = src[i], st = starsOf(it);
+      if(STAR_MIN > 0 && st < STAR_MIN) continue;
+      tmp.push({ it: it, jit: hashStr(subjKey + '#' + (it.id || i)) });
+    }
+    tmp.sort(function(a,b){ return a.jit - b.jit; });
+    POOL_CACHE[ck] = tmp.map(function(o){ return o.it; });
+    return POOL_CACHE[ck];
+  }
+
+  // ---------- 采样：按“日期线性推进 + 块式覆盖整池”，同一天固定同一组 ----------
   // pickForDay(subject, q)：
   //   - dateOrd 随自然日递增一个“天序号”；
   //   - extra 是用户当天“换一组”的偏移（换天自动归零）；
-  //   - 把题库按 q 切块，第 (dayNo+extra) 天取第 (dayNo+extra) 块，
-  //     满一轮（ceil(S/q) 天）再整体平移，从而轮流覆盖整库且不重复到同一天内。
+  //   - 把抽题池按 q 切块，第 (dayNo+extra) 天取第 (dayNo+extra) 块，
+  //     满一轮（ceil(S/q) 天）再整体平移，从而轮流覆盖整池且同一组内不重复。
   function pickForDay(subjKey, q){
-    var arr = (BANK && BANK.items) ? BANK.items[subjKey] : null;
+    var arr = poolOf(subjKey);
     if(!arr || !arr.length || !q || q<=0) return [];
     var S = arr.length;
     q = Math.min(q, S); // 若配额超过池容量，最多取全池
-    var numBlocks = Math.ceil(S / q);          // 覆盖整库所需天数
+    var numBlocks = Math.ceil(S / q);          // 覆盖整池所需天数
     var block = ((dateOrd(viewedDate) + extra) % numBlocks + numBlocks) % numBlocks;
     var start = (block * q) % S;
     var picked = [];
@@ -230,10 +294,10 @@ html,body{background:var(--bg);color:var(--ink);
     return picked;
   }
 
-  // 某科当前处于“第几轮 x / 共几轮”
+  // 某科当前处于“第几轮 x / 共几轮”（按当前星级池计）
   function coverageOf(subjKey, q){
-    var arr = (BANK && BANK.items) ? BANK.items[subjKey] : null;
-    if(!arr || !q) return null;
+    var arr = poolOf(subjKey);
+    if(!arr || !arr.length || !q) return null;
     var numBlocks = Math.ceil(arr.length / Math.max(1, Math.min(q, arr.length)));
     var pos = ((dateOrd(viewedDate) + extra) % numBlocks + numBlocks) % numBlocks + 1;
     return pos + ' / ' + numBlocks;
@@ -257,6 +321,27 @@ html,body{background:var(--bg);color:var(--ink);
     // 应用按钮
     var go=document.createElement('button'); go.type='button'; go.className='btn-go go'; go.textContent='✓ 开始今日抽题';
     row.appendChild(go);
+    renderStarRow();
+  }
+  // 星级分段控件 + 可用题量提示
+  function renderStarRow(){
+    var seg=document.getElementById('segStar');
+    if(seg){
+      Array.prototype.forEach.call(seg.querySelectorAll('button[data-min]'), function(b){
+        b.classList.toggle('on', (parseInt(b.getAttribute('data-min'),10)||0) === STAR_MIN);
+      });
+    }
+    var hint=document.getElementById('starHint');
+    if(!hint) return;
+    var parts=[], days=[];
+    SUBJECTS.forEach(function(s){
+      var n = (BANK && BANK.items) ? poolOf(s.key).length : 0;
+      parts.push(s.name+' <b>'+n+'</b>');
+      var q = CUR_Q[s.key]||0;
+      if(q>0 && n>0) days.push(Math.ceil(n/q));
+    });
+    hint.innerHTML = '可用题量：'+parts.join(' · ')+
+      (days.length ? ' ｜ 最慢一科一轮约 <b>'+Math.max.apply(null,days)+'</b> 天' : '');
   }
   function bindConfig(){
     document.getElementById('qrow').addEventListener('click', function(ev){
@@ -266,12 +351,23 @@ html,body{background:var(--bg);color:var(--ink);
         var dir=btn.getAttribute('data-act')==='inc'?1:-1;
         CUR_Q[k]=Math.max(0,Math.min(30, (CUR_Q[k]||0)+dir));
         document.getElementById('qv_'+k).textContent=CUR_Q[k];
-        saveQ();
+        saveQ(); renderStarRow();   // 题量变了，可用轮次提示跟着变
         return;
       }
       if(ev.target.classList && ev.target.classList.contains('btn-go')){
         extra=0; render(); // 用新配额重新抽
       }
+    });
+    var seg=document.getElementById('segStar');
+    if(seg) seg.addEventListener('click', function(ev){
+      var btn=ev.target.closest && ev.target.closest('button[data-min]');
+      if(!btn) return;
+      var v=parseInt(btn.getAttribute('data-min'),10);
+      STAR_MIN = (v>=0 && v<=5) ? v : DEFAULT_STAR;
+      saveStar();
+      extra=0;            // 换池后回到当天第一组
+      renderConfigRow();  // 里面会重绘星级控件与提示
+      render();
     });
   }
 
@@ -282,7 +378,8 @@ html,body{background:var(--bg);color:var(--ink);
     if(!picks.length) return '';
     var head='<div class="ghead"><span class="no" style="background:'+subj.color+'">'+subj.name+'</span>'+
       '<span>'+subj.name+'文学 · '+picks.length+' 题</span>'+
-      '<span style="margin-left:auto;font-weight:400;color:var(--sub);font-size:13px">覆盖轮次 '+coverageOf(subj.key, CUR_Q[subj.key])+'</span></div>';
+      '<span style="margin-left:auto;font-weight:400;color:var(--sub);font-size:13px">'+
+        starPoolLabel()+' '+coverageOf(subj.key, CUR_Q[subj.key])+'</span></div>';
     var cards='';
     picks.forEach(function(it){
       var qid=esc(it.id||'-');
@@ -323,9 +420,9 @@ html,body{background:var(--bg);color:var(--ink);
       html+=groupHtml(s,picks);
     });
     document.getElementById('summary').textContent=
-      '共 '+total+' 题（古代 '+CUR_Q.gu+' · 现当代 '+CUR_Q.xd+' · 外国 '+CUR_Q.wg+'）｜点击题目头部展开答案';
+      '共 '+total+' 题（古代 '+CUR_Q.gu+' · 现当代 '+CUR_Q.xd+' · 外国 '+CUR_Q.wg+'）｜取题范围：'+starPoolLabel()+' ｜点击题目头部展开答案';
     var c=document.getElementById('content');
-    c.innerHTML = total? html : '<div class="empty">当天未抽到任何题 —— 请把某一科配额调整为 1 或更多。</div>';
+    c.innerHTML = total? html : '<div class="empty">当天未抽到任何题 —— 请把某一科配额调整为 1 或更多，或把「星级偏好」放宽到「不限」。</div>';
   }
 
   function shiftDay(delta){ viewedDate=shift(viewedDate,delta); extra=0; render(); }
@@ -337,6 +434,14 @@ html,body{background:var(--bg);color:var(--ink);
     if(raw){ try{var o=JSON.parse(raw); if(o&&typeof o==='object'){ Object.keys(o).forEach(function(k){CUR_Q[k]=Math.max(0,Math.min(30,o[k]||0));}); }}catch(e){} }
   }
   function saveQ(){ if(localStorageOK) try{ localStorage.setItem('dailymeta_q', JSON.stringify(CUR_Q)); }catch(e){} }
+  function loadStar(){
+    var raw=null; if(localStorageOK) try{ raw=localStorage.getItem('dailymeta_starmin'); }catch(e){}
+    if(raw!==null && raw!=='' && typeof raw!=='undefined'){
+      var v=parseInt(raw,10);
+      if(!isNaN(v) && v>=0 && v<=5) STAR_MIN=v;
+    }
+  }
+  function saveStar(){ if(localStorageOK) try{ localStorage.setItem('dailymeta_starmin', String(STAR_MIN)); }catch(e){} }
 
   function bind(){
     document.getElementById('prevDay').onclick=function(){shiftDay(-1)};
@@ -359,6 +464,7 @@ html,body{background:var(--bg);color:var(--ink);
   };
 
   loadQ();
+  loadStar();
   renderConfigRow();
   bindConfig();
   bind();
